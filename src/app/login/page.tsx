@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/icons/brand-logo";
 import { GoogleIcon } from "@/components/icons/google-icon";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,8 +35,11 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await api.login(email.trim(), password);
       router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Falha ao realizar login.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

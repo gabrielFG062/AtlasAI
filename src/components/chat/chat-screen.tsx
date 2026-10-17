@@ -4,8 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Sparkles, User, ArrowDown, RefreshCw, AlertTriangle, ArrowUpRight, CheckCircle2, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { useSubscription } from "@/contexts/subscription-context";
+import { useChats } from "@/contexts/chats-context";
+import { api, getAuthToken } from "@/lib/api";
 import type { ChatCategoryId } from "@/lib/chat-categories";
 
 type Message = {
@@ -44,26 +47,63 @@ type Message = {
 };
 
 type ChatScreenProps = {
+  chatId?: string;
   heading?: string;
   initialCategory?: ChatCategoryId;
 };
 
 export function ChatScreen({
+  chatId,
   heading = "Como posso ajudar hoje?",
   initialCategory,
 }: ChatScreenProps) {
+  const router = useRouter();
+  const { refreshChats } = useChats();
   const [category, setCategory] = useState<ChatCategoryId>(initialCategory ?? "nano-banana-lite");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsAIWriting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isPro } = useSubscription();
 
+  // Carrega histórico real de mensagens do backend quando há chatId
+  useEffect(() => {
+    if (!chatId) {
+      setMessages([]);
+      return;
+    }
+    let isMounted = true;
+    const token = getAuthToken();
+    if (token) {
+      api
+        .getConversation(chatId)
+        .then((detail) => {
+          if (!isMounted) return;
+          const mapped: Message[] = detail.messages.map((m) => ({
+            id: String(m.id),
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.created_at).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }));
+          setMessages(mapped);
+        })
+        .catch((err) => {
+          console.error("Falha ao carregar histórico da conversa:", err);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [chatId]);
+
   // Auto scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
 
     const userMsgId = crypto.randomUUID();
@@ -74,13 +114,77 @@ export function ChatScreen({
       role: "user",
       content: text,
       timestamp: now,
-      category
+      category,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setIsAIWriting(true);
 
-    // Simulate AI response based on the user's query
+    const token = getAuthToken();
+    if (token) {
+      let activeConversationId = chatId;
+      if (!activeConversationId) {
+        try {
+          const title = text.trim().slice(0, 30);
+          const created = await api.createConversation(title);
+          activeConversationId = String(created.id);
+          refreshChats();
+        } catch (err) {
+          console.error("Erro ao criar conversa no backend:", err);
+        }
+      }
+
+      if (activeConversationId) {
+        try {
+          const exchange = await api.sendMessage(activeConversationId, text);
+          const aiMessage: Message = {
+            id: String(exchange.assistant_message.id),
+            role: "assistant",
+            timestamp: new Date(exchange.assistant_message.created_at).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            content: exchange.assistant_message.content,
+          };
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => m.id !== userMsgId);
+            const realUserMsg: Message = {
+              id: String(exchange.user_message.id),
+              role: "user",
+              content: exchange.user_message.content,
+              timestamp: new Date(exchange.user_message.created_at).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              category,
+            };
+            return [...filtered, realUserMsg, aiMessage];
+          });
+
+          if (!chatId) {
+            router.push(`/dashboard/chat/${activeConversationId}`);
+          }
+          return;
+        } catch (err: unknown) {
+          const errorMsg =
+            err instanceof Error
+              ? `Erro ao comunicar com a IA: ${err.message}`
+              : "Erro ao comunicar com a IA.";
+          const aiError: Message = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            content: errorMsg,
+          };
+          setMessages((prev) => [...prev, aiError]);
+          return;
+        } finally {
+          setIsAIWriting(false);
+        }
+      }
+    }
+
+    // Fallback caso não autenticado ou indisponível
     setTimeout(() => {
       const aiMsgId = crypto.randomUUID();
       const aiTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -89,7 +193,6 @@ export function ChatScreen({
       let aiMessage: Message;
 
       if (lowerText.includes("venda") || lowerText.includes("cair") || lowerText.includes("queda") || lowerText.includes("google") || lowerText.includes("analytics")) {
-        // High-fidelity Google Analytics response
         aiMessage = {
           id: aiMsgId,
           role: "assistant",
@@ -133,7 +236,6 @@ export function ChatScreen({
           }
         };
       } else {
-        // Standard high-fidelity assistant response
         aiMessage = {
           id: aiMsgId,
           role: "assistant",

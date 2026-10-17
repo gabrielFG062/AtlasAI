@@ -14,7 +14,7 @@ type ConnectionModalProps = {
   integration: Integration | null;
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (id: AdPlatform, accountName: string) => void;
+  onConnect: (id: AdPlatform, accountName: string) => Promise<void> | void;
 };
 
 const brandLogos: Record<AdPlatform, React.ElementType> = {
@@ -54,17 +54,14 @@ export function ConnectionModal({
 
   if (!integration) return null;
 
-  const handleAuthorize = () => {
+  const handleAuthorize = async () => {
     setState("loading");
-    setTimeout(() => {
-      const success = Math.random() > 0.15;
-      if (success) {
-        setState("success");
-        onConnect(integration.id, "Conta de demonstração");
-      } else {
-        setState("error");
-      }
-    }, 1800);
+    try {
+      await onConnect(integration.id, `Conta ${integration.name}`);
+      setState("success");
+    } catch {
+      setState("error");
+    }
   };
 
   const color = brandColors[integration.id];
