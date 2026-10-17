@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, LogOut, Trash2, Save, Sparkles, AlertTriangle, ArrowLeft, CreditCard, RotateCcw } from "lucide-react";
+import { User, LogOut, Trash2, Save, Sparkles, AlertTriangle, ArrowLeft, CreditCard, RotateCcw, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,17 +14,27 @@ import {
   PRO_PRICE_LABEL,
   SUBSCRIPTION_STATUS_LABELS,
 } from "@/lib/subscription";
+import { api, clearAuthToken } from "@/lib/api";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState("Gabriel");
-  const [lastName, setLastName] = useState("Go");
-  const [email, setEmail] = useState("gabriel@example.com");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   
   const [userInstructions, setUserInstructions] = useState("");
   const [aiResponseStyle, setAiResponseStyle] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isInstructionsSaving, setIsInstructionsSaving] = useState(false);
+  const [instructionsMessage, setInstructionsMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -32,31 +42,86 @@ export default function SettingsPage() {
   const { subscription, isPro, cancelSubscription, resumeSubscription } = useSubscription();
   const isCanceled = subscription.status === "canceled";
 
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .getMe()
+      .then((user) => {
+        if (!isMounted) return;
+        setFirstName(user.name || "");
+        setLastName(user.last_name || "");
+        setEmail(user.email || "");
+        setUserInstructions(user.custom_instructions || "");
+      })
+      .catch(() => {
+        // Se não autenticado ou indisponível, mantém campos vazios/padrão
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleCancelSubscription = () => {
     cancelSubscription();
     setShowCancelConfirm(false);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
+    setIsProfileSaving(true);
+    setProfileMessage(null);
+    try {
+      await api.updateMe({
+        name: firstName.trim(),
+        last_name: lastName.trim() || undefined,
+      });
+      setProfileMessage({ type: "success", text: "Perfil salvo com sucesso." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar perfil.";
+      setProfileMessage({ type: "error", text: msg });
+    } finally {
+      setIsProfileSaving(false);
+    }
   };
 
-  const handleSaveInstructions = (e: React.FormEvent) => {
+  const handleSaveInstructions = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1000);
+    setIsInstructionsSaving(true);
+    setInstructionsMessage(null);
+    try {
+      await api.updateMe({
+        custom_instructions: userInstructions,
+      });
+      setInstructionsMessage({ type: "success", text: "Instruções salvas com sucesso." });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar instruções.";
+      setInstructionsMessage({ type: "error", text: msg });
+    } finally {
+      setIsInstructionsSaving(false);
+    }
   };
 
   const handleLogout = () => {
+    clearAuthToken();
     router.push("/login");
   };
 
-  const handleDeleteAccount = () => {
-    // In a real app, show a confirmation modal first
-    if(confirm("Tem certeza que deseja excluir sua conta permanentemente? Esta ação não pode ser desfeita.")) {
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError("Informe sua senha para confirmar a exclusão.");
+      return;
+    }
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await api.requestAccountDeletion(deletePassword);
+      clearAuthToken();
       router.push("/login");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao solicitar exclusão de conta.";
+      setDeleteError(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -133,9 +198,24 @@ export default function SettingsPage() {
                   />
                   <p className="text-xs text-gray-500 ml-1">O seu e-mail não pode ser alterado por aqui.</p>
                 </div>
+                {profileMessage && (
+                  <p
+                    className={`text-xs ml-1 ${
+                      profileMessage.type === "success"
+                        ? "text-emerald-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {profileMessage.text}
+                  </p>
+                )}
                 <div className="pt-2 flex justify-end">
-                  <Button type="submit" disabled={isLoading} className="px-6">
-                    <Save className="w-4 h-4 mr-2" />
+                  <Button type="submit" disabled={isProfileSaving} className="px-6">
+                    {isProfileSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
                     Salvar Perfil
                   </Button>
                 </div>
@@ -181,9 +261,25 @@ export default function SettingsPage() {
                   />
                 </div>
 
+                {instructionsMessage && (
+                  <p
+                    className={`text-xs ml-1 ${
+                      instructionsMessage.type === "success"
+                        ? "text-emerald-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {instructionsMessage.text}
+                  </p>
+                )}
+
                 <div className="pt-2 flex justify-end">
-                  <Button type="submit" disabled={isLoading} className="px-6 bg-white text-black hover:bg-gray-200">
-                    <Save className="w-4 h-4 mr-2" />
+                  <Button type="submit" disabled={isInstructionsSaving} className="px-6 bg-white text-black hover:bg-gray-200">
+                    {isInstructionsSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-black" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
                     Salvar Instruções
                   </Button>
                 </div>
@@ -360,10 +456,25 @@ export default function SettingsPage() {
                         <p className="text-sm text-red-200 font-medium border-b border-red-500/20 pb-2 mb-2">
                           Atenção: Ação irreversível!
                         </p>
-                        <p className="text-xs text-red-300">Todos os seus chats serão apagados. Deseja prosseguir?</p>
+                        <p className="text-xs text-red-300">Todos os seus dados e conversas serão agendados para exclusão. Digite sua senha para confirmar:</p>
+                        <Input
+                          type="password"
+                          placeholder="Senha atual"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="h-10 text-sm mt-2"
+                        />
+                        {deleteError && (
+                          <p className="text-xs text-red-400 mt-1">{deleteError}</p>
+                        )}
                         <div className="flex gap-2 mt-3 pt-1">
-                          <Button onClick={handleDeleteAccount} className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0">Excluir</Button>
-                          <Button onClick={() => setShowDeleteConfirm(false)} variant="outline" className="flex-1 border-white/10 text-gray-300 hover:bg-white/5">Cancelar</Button>
+                          <Button onClick={handleDeleteAccount} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0">
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Confirmar Exclusão
+                          </Button>
+                          <Button onClick={() => { setShowDeleteConfirm(false); setDeleteError(""); setDeletePassword(""); }} variant="outline" className="flex-1 border-white/10 text-gray-300 hover:bg-white/5">
+                            Cancelar
+                          </Button>
                         </div>
                       </motion.div>
                     )}
