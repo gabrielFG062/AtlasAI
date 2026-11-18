@@ -75,6 +75,27 @@ export type AdAccountCreate = {
   granted_scopes?: string | null;
 };
 
+export type InstagramConnectResponse = {
+  auth_url: string;
+  state: string;
+};
+
+export type InstagramAccountRead = {
+  connected: boolean;
+  instagram_user_id?: string | null;
+  username?: string | null;
+  profile_picture_url?: string | null;
+  connection_status: string;
+  token_expires_at?: string | null;
+  scopes?: string | null;
+  created_at?: string | null;
+};
+
+export type InstagramDisconnectResponse = {
+  success: boolean;
+  message: string;
+};
+
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
@@ -305,6 +326,23 @@ export const api = {
 
   async deleteAdAccount(id: number): Promise<void> {
     return request<void>(`/ad-accounts/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Integração com Instagram (Meta OAuth 2.0)
+  async connectInstagram(): Promise<InstagramConnectResponse> {
+    return request<InstagramConnectResponse>("/api/integrations/instagram/connect", {
+      method: "POST",
+    });
+  },
+
+  async getInstagramStatus(): Promise<InstagramAccountRead> {
+    return request<InstagramAccountRead>("/api/integrations/instagram");
+  },
+
+  async disconnectInstagram(): Promise<InstagramDisconnectResponse> {
+    return request<InstagramDisconnectResponse>("/api/integrations/instagram", {
       method: "DELETE",
     });
   },

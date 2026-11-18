@@ -6,6 +6,7 @@ import { Settings, Sparkles, User, ArrowDown, RefreshCw, AlertTriangle, ArrowUpR
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatComposer } from "@/components/chat/chat-composer";
+import { MediaContentRenderer } from "@/components/chat/media-content-renderer";
 import { useSubscription } from "@/contexts/subscription-context";
 import { useChats } from "@/contexts/chats-context";
 import { api, getAuthToken } from "@/lib/api";
@@ -371,7 +372,7 @@ export function ChatScreen({
 
                         <div className="flex-1 flex flex-col items-start min-w-0">
                           <div className="text-sm text-gray-200 leading-relaxed max-w-prose">
-                            {msg.content}
+                            <MediaContentRenderer content={msg.content} />
                           </div>
 
                           {/* Google Analytics Interactive Cards */}

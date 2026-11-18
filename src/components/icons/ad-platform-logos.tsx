@@ -1,11 +1,34 @@
 export function MetaLogo({ className = "w-6 h-6" }: { className?: string }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/logos/meta.png"
-      alt="Meta"
+    <svg
+      viewBox="0 0 24 24"
       className={className}
-    />
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="M16.993 4.195c-2.316 0-4.045 1.41-4.993 2.923-.948-1.513-2.677-2.923-4.993-2.923C3.003 4.195 0 7.398 0 11.53c0 4.928 3.82 8.275 6.947 8.275 2.127 0 3.737-1.127 5.053-2.585 1.316 1.458 2.926 2.585 5.053 2.585 3.127 0 6.947-3.347 6.947-8.275 0-4.132-3.003-7.335-7.007-7.335zm-9.986 12.92c-2.072 0-4.32-2.37-4.32-5.585 0-2.827 1.83-5.012 4.32-5.012 1.94 0 3.42 1.542 4.225 3.25-.89 1.638-2.22 4.364-4.225 7.347zm9.986 0c-2.005-2.983-3.335-5.709-4.225-7.347.805-1.708 2.285-3.25 4.225-3.25 2.49 0 4.32 2.185 4.32 5.012 0 3.215-2.248 5.585-4.32 5.585z" />
+    </svg>
+  );
+}
+
+export function InstagramLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
   );
 }
 

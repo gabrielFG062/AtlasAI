@@ -27,7 +27,7 @@ type IntegrationsContextValue = {
   getById: (id: AdPlatform) => Integration | undefined;
 };
 
-function toBackendPlatform(id: AdPlatform): AdPlatformBackend {
+function toBackendPlatform(id: AdPlatform): AdPlatformBackend | null {
   switch (id) {
     case "meta":
       return "meta_ads";
@@ -35,6 +35,8 @@ function toBackendPlatform(id: AdPlatform): AdPlatformBackend {
       return "google_ads";
     case "tiktok":
       return "tiktok_ads";
+    default:
+      return null;
   }
 }
 
@@ -58,6 +60,7 @@ export function IntegrationsProvider({ children }: { children: React.ReactNode }
   const [hydrated, setHydrated] = useState(false);
   const [backendAccountIds, setBackendAccountIds] = useState<Record<AdPlatform, number | null>>({
     meta: null,
+    instagram: null,
     google: null,
     tiktok: null,
   });
@@ -81,34 +84,56 @@ export function IntegrationsProvider({ children }: { children: React.ReactNode }
     let isMounted = true;
     const token = getAuthToken();
     if (token) {
-      api
-        .listAdAccounts()
-        .then((accounts) => {
-          if (!isMounted) return;
-          const newIds: Record<AdPlatform, number | null> = { meta: null, google: null, tiktok: null };
-          setIntegrations((current) => {
-            return current.map((item) => {
-              const matched = accounts.find((a) => fromBackendPlatform(a.platform) === item.id);
-              if (matched) {
-                newIds[item.id] = matched.id;
+      Promise.allSettled([
+        api.listAdAccounts(),
+        api.getInstagramStatus(),
+      ]).then(([accountsRes, igRes]) => {
+        if (!isMounted) return;
+        const newIds: Record<AdPlatform, number | null> = { meta: null, instagram: null, google: null, tiktok: null };
+        const accounts = accountsRes.status === "fulfilled" ? accountsRes.value : [];
+        const igData = igRes.status === "fulfilled" ? igRes.value : null;
+
+        setIntegrations((current) => {
+          return current.map((item) => {
+            if (item.id === "instagram") {
+              if (igData && igData.connected) {
                 return {
                   ...item,
-                  status: matched.status === "active" ? "connected" : matched.status === "revoked" ? "disconnected" : "error",
-                  accountName: matched.external_account_id,
-                  lastSyncedAt: new Date(matched.connected_at).getTime(),
+                  status: "connected",
+                  accountName: igData.username || "Conta Instagram",
+                  accountHandle: igData.username ? `@${igData.username}` : undefined,
+                  avatarUrl: igData.profile_picture_url || undefined,
+                  lastSyncedAt: igData.created_at ? new Date(igData.created_at).getTime() : Date.now(),
+                };
+              } else {
+                return {
+                  ...item,
+                  status: "disconnected",
+                  accountName: undefined,
+                  accountHandle: undefined,
+                  avatarUrl: undefined,
+                  lastSyncedAt: undefined,
                 };
               }
-              return item;
-            });
+            }
+
+            const matched = accounts.find((a) => fromBackendPlatform(a.platform) === item.id);
+            if (matched) {
+              newIds[item.id] = matched.id;
+              return {
+                ...item,
+                status: matched.status === "active" ? "connected" : matched.status === "revoked" ? "disconnected" : "error",
+                accountName: matched.external_account_id,
+                lastSyncedAt: new Date(matched.connected_at).getTime(),
+              };
+            }
+            return item;
           });
-          setBackendAccountIds(newIds);
-          setHydrated(true);
-        })
-        .catch(() => {
-          if (!isMounted) return;
-          setIntegrations(loadIntegrations());
-          setHydrated(true);
         });
+
+        setBackendAccountIds(newIds);
+        setHydrated(true);
+      });
     } else {
       setIntegrations(loadIntegrations());
       setHydrated(true);
@@ -126,9 +151,9 @@ export function IntegrationsProvider({ children }: { children: React.ReactNode }
   const connect = useCallback(
     async (id: AdPlatform, accountName: string) => {
       const token = getAuthToken();
-      if (token) {
+      const backendPlatform = toBackendPlatform(id);
+      if (token && backendPlatform) {
         try {
-          const backendPlatform = toBackendPlatform(id);
           const created = await api.createAdAccount({
             platform: backendPlatform,
             external_account_id: accountName,
@@ -151,6 +176,7 @@ export function IntegrationsProvider({ children }: { children: React.ReactNode }
       updateIntegration(id, {
         status: "connected",
         accountName,
+        accountHandle: id === "instagram" ? "@atlas.ai" : undefined,
         lastSyncedAt: Date.now(),
       });
     },
@@ -160,6 +186,24 @@ export function IntegrationsProvider({ children }: { children: React.ReactNode }
   const disconnect = useCallback(
     async (id: AdPlatform) => {
       const token = getAuthToken();
+      if (id === "instagram") {
+        if (token) {
+          try {
+            await api.disconnectInstagram();
+          } catch (err) {
+            console.error("Falha ao desconectar Instagram no backend:", err);
+          }
+        }
+        updateIntegration("instagram", {
+          status: "disconnected",
+          accountName: undefined,
+          accountHandle: undefined,
+          avatarUrl: undefined,
+          lastSyncedAt: undefined,
+        });
+        return;
+      }
+
       const backendId = backendAccountIds[id];
       if (token && backendId) {
         try {

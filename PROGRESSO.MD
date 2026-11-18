@@ -53,8 +53,12 @@
    - `src/components/chat/chat-screen.tsx`: Conectado ao `GET /conversations/{id}` para carregar o histórico de mensagens salvas e a `POST /conversations/{id}/messages` para enviar mensagens do usuário e receber respostas reais da IA Gemini. No dashboard inicial (sem conversa ativa), cria a conversa no backend e redireciona para a rota `/dashboard/chat/[id]`.
 
 6. **Fluxo de Integrações de Plataformas (`/integracoes`)**:
-   - `src/contexts/integrations-context.tsx`: Conectado a `GET /ad-accounts` para sincronizar o status das plataformas (`meta_ads`, `google_ads`, `tiktok_ads`) com a base de dados do usuário autenticado. Vinculação conectada a `POST /ad-accounts` e desvinculação a `DELETE /ad-accounts/{id}`.
-   - `src/components/integrations/connection-modal.tsx`: Atualizado para acionar a conexão assíncrona ao backend.
+   - `src/lib/api.ts`: Adicionados tipos (`InstagramConnectResponse`, `InstagramAccountRead`, `InstagramDisconnectResponse`) e métodos de cliente (`connectInstagram`, `getInstagramStatus`, `disconnectInstagram`) consumindo `/api/integrations/instagram`.
+   - `src/contexts/integrations-context.tsx`: Conectado a `GET /api/integrations/instagram` em conjunto com `GET /ad-accounts` para sincronizar o status real da conta do Instagram conectada (username, foto, status de conexão). Ação de desconexão atualizada para chamar `DELETE /api/integrations/instagram`.
+   - `src/components/integrations/connection-modal.tsx`: Atualizado para acionar `api.connectInstagram()` ao autorizar conta do Instagram e redirecionar imediatamente o navegador para a `auth_url` da Meta (`window.location.href = data.auth_url`), eliminando a simulação de fechamento fictício com dados estáticos.
+   - `src/components/integrations/integration-card.tsx`: Atualizado para renderizar a foto de perfil (`avatarUrl`) real do perfil do Instagram retornado pelo backend.
+   - `src/components/integrations/manage-modal.tsx`: Criado modal de gerenciamento de conexão conectado a `DELETE /api/integrations/instagram` para desconectar a conta do usuário.
+   - `src/app/integracoes/page.tsx`: Integrado o modal de gerenciamento (`ManageModal`) ao clicar em "Gerenciar conexão".
 
 ---
 
@@ -63,17 +67,22 @@
 - `next.config.ts`: Adicionado proxy rewrite para o backend FastAPI.
 - `.env.example`: Adicionado com documentação de variáveis de ambiente.
 - `.env.local`: Criado com configurações locais de conexão.
-- `src/lib/api.ts`: Criado com cliente tipado para os contratos do backend.
+- `src/lib/api.ts`: Criado cliente tipado para os contratos do backend e adicionados endpoints do Instagram (`connectInstagram`, `getInstagramStatus`, `disconnectInstagram`).
 - `src/app/login/page.tsx`: Conectado login ao backend.
 - `src/app/register/page.tsx`: Conectado cadastro ao backend com validação de senha de 8 caracteres.
 - `src/app/dashboard/settings/page.tsx`: Conectados consulta/atualização de perfil, instruções, exclusão de conta e logout.
 - `src/contexts/chats-context.tsx`: Conectada listagem, criação e exclusão de conversas.
 - `src/components/layout/sidebar.tsx`: Atualizado manuseio de conversas assíncronas.
 - `src/app/dashboard/chat/[id]/page.tsx`: Repasse de `chatId` para o componente `ChatScreen`.
-- `src/components/chat/chat-screen.tsx`: Conectado histórico e envio de mensagens para a IA do backend.
-- `src/contexts/integrations-context.tsx`: Conectada listagem, criação e remoção de contas de anúncios.
-- `src/components/integrations/connection-modal.tsx`: Conectada autorização assíncrona à API.
-- `PROGRESSO.MD`: Atualizado com o relatório completo da integração.
+- `src/components/chat/chat-screen.tsx`: Conectado histórico e envio de mensagens para a IA do backend e renderizador de mídia.
+- `src/contexts/integrations-context.tsx`: Conectada listagem, criação, remoção de contas de anúncios e integração oficial com status e desconexão do Instagram.
+- `src/components/integrations/connection-modal.tsx`: Conectada autorização real via `POST /api/integrations/instagram/connect` com redirecionamento oficial para o OAuth da Meta.
+- `src/components/integrations/manage-modal.tsx`: Modal para gerenciamento e desconexão real (`DELETE /api/integrations/instagram`).
+- `src/components/integrations/integration-card.tsx`: Redesenhado com padrão SaaS premium (Linear/Vercel/Apple), exibição de avatar/identificação e suporte a foto de perfil real.
+- `src/components/integrations/status-indicator.tsx`: Atualizado com novo design de pill e indicadores minimalistas.
+- `src/components/icons/ad-platform-logos.tsx`: Adicionado ícone oficial SVG do Instagram e ícone oficial da Meta.
+- `src/app/integracoes/page.tsx`: Redesenhado com grid de 4 colunas, novo cabeçalho e modais de conexão e gerenciamento integrados.
+- `PROGRESSO.MD`: Atualizado com o relatório completo da integração e redesign.
 
 ---
 
