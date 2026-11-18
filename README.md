@@ -1,4 +1,4 @@
-# 🌌 AtlasAI — Intelligent Marketing & Creative Autonomous Agent
+# AtlasAI — Intelligent Marketing & Creative Autonomous Agent
 
 <div align="center">
   <img src="https://img.shields.io/badge/Next.js-16.2.6-black?style=for-the-badge&logo=next.js" alt="Next.js 16" />
