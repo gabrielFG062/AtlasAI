@@ -243,8 +243,8 @@ export function Sidebar() {
     return sorted.slice(0, 10);
   }, [chats, searchQuery, activeChatId]);
 
-  const handleNewChat = () => {
-    const chat = createNewChat();
+  const handleNewChat = async () => {
+    const chat = await createNewChat();
     router.push(`/dashboard/chat/${chat.id}`);
   };
 
@@ -260,8 +260,8 @@ export function Sidebar() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteChat(id);
+  const handleDelete = async (id: string) => {
+    await deleteChat(id);
     if (openMenuId === id) setOpenMenuId(null);
     if (activeChatId === id) {
       router.push("/dashboard");

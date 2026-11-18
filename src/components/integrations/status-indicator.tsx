@@ -5,26 +5,30 @@ import { type IntegrationStatus } from "@/lib/integrations";
 
 const statusConfig: Record<
   IntegrationStatus,
-  { label: string; color: string; pulse: boolean }
+  { label: string; dotColor: string; textColor: string; pulse: boolean }
 > = {
   disconnected: {
     label: "Desconectado",
-    color: "bg-gray-500",
+    dotColor: "bg-gray-500",
+    textColor: "text-gray-400",
     pulse: false,
   },
   connected: {
     label: "Conectado",
-    color: "bg-[#C8F04A]",
+    dotColor: "bg-emerald-400",
+    textColor: "text-emerald-400",
     pulse: true,
   },
   syncing: {
     label: "Sincronizando",
-    color: "bg-blue-400",
+    dotColor: "bg-blue-400",
+    textColor: "text-blue-400",
     pulse: true,
   },
   error: {
     label: "Erro",
-    color: "bg-red-500",
+    dotColor: "bg-rose-500",
+    textColor: "text-rose-400",
     pulse: false,
   },
 };
@@ -33,19 +37,21 @@ export function StatusIndicator({ status }: { status: IntegrationStatus }) {
   const config = statusConfig[status];
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="relative flex h-2 w-2">
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.02]">
+      <span className="relative flex h-1.5 w-1.5">
         {config.pulse && (
           <span
             className={cn(
-              "animate-ping absolute inline-flex h-full w-full rounded-full opacity-40",
-              config.color
+              "animate-ping absolute inline-flex h-full w-full rounded-full opacity-50",
+              config.dotColor
             )}
           />
         )}
-        <span className={cn("relative inline-flex rounded-full h-2 w-2", config.color)} />
+        <span className={cn("relative inline-flex rounded-full h-1.5 w-1.5", config.dotColor)} />
       </span>
-      <span className="text-xs font-medium text-gray-400">{config.label}</span>
+      <span className={cn("text-[11px] font-medium tracking-wide", config.textColor)}>
+        {config.label}
+      </span>
     </div>
   );
 }

@@ -24,5 +24,5 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const heading =
     chat.title === "Nova conversa" ? "Como posso ajudar hoje?" : chat.title;
 
-  return <ChatScreen heading={heading} />;
+  return <ChatScreen chatId={id} heading={heading} />;
 }

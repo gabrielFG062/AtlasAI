@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,8 +33,8 @@ export default function RegisterPage() {
       setError("Por favor, insira um e-mail válido.");
       return;
     }
-    if (password.length < 6) {
-      setError("A senha deve ter no mínimo 6 caracteres.");
+    if (password.length < 8) {
+      setError("A senha deve ter no mínimo 8 caracteres.");
       return;
     }
     if (password !== confirmPassword) {
@@ -42,11 +43,21 @@ export default function RegisterPage() {
     }
 
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      await api.register({
+        name: fullName,
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      await api.login(email.trim().toLowerCase(), password);
       router.push("/dashboard");
-    }, 1500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Falha ao criar conta.";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -130,7 +141,7 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Senha (mín. 6 caracteres)"
+                placeholder="Senha (mín. 8 caracteres)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={<Lock className="h-4 w-4" />}

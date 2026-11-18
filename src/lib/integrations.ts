@@ -1,6 +1,6 @@
 export type IntegrationStatus = "disconnected" | "connected" | "syncing" | "error";
 
-export type AdPlatform = "meta" | "google" | "tiktok";
+export type AdPlatform = "meta" | "instagram" | "google" | "tiktok";
 
 export type Integration = {
   id: AdPlatform;
@@ -10,6 +10,9 @@ export type Integration = {
   brandColor: string;
   status: IntegrationStatus;
   accountName?: string;
+  accountHandle?: string;
+  avatarUrl?: string;
+  isFeatured?: boolean;
   lastSyncedAt?: number;
   permissions: string[];
 };
@@ -19,9 +22,12 @@ export const INTEGRATIONS: Integration[] = [
     id: "meta",
     name: "Meta Ads",
     category: "SOCIAL PERFORMANCE",
-    description: "Conecte campanhas, conjuntos de anúncios e conversões da sua conta Meta em um só fluxo.",
+    description: "Gerencie campanhas, anúncios e métricas.",
     brandColor: "#1877F2",
-    status: "disconnected",
+    status: "connected",
+    accountName: "Atlas Digital Enterprise",
+    accountHandle: "act_492019482",
+    lastSyncedAt: Date.now() - 1000 * 60 * 18,
     permissions: [
       "Ler campanhas e conjuntos de anúncios",
       "Acessar métricas de conversão",
@@ -30,11 +36,26 @@ export const INTEGRATIONS: Integration[] = [
     ],
   },
   {
+    id: "instagram",
+    name: "Instagram",
+    category: "CONTENT & ENGAGEMENT",
+    description: "Crie designs, publique posts, Reels e gerencie seu conteúdo.",
+    brandColor: "#E1306C",
+    status: "disconnected",
+    isFeatured: true,
+    permissions: [
+      "Publicar posts, stories e Reels automaticamente",
+      "Acessar métricas de engajamento e alcance",
+      "Gerenciar calendário editorial e comentários",
+      "Sincronizar perfil profissional e insights",
+    ],
+  },
+  {
     id: "google",
     name: "Google Ads",
     category: "SEARCH & DISPLAY",
-    description: "Acompanhe investimento, cliques, palavras-chave e resultados de pesquisa com clareza.",
-    brandColor: "#FBBF24",
+    description: "Gerencie campanhas e acompanhe resultados.",
+    brandColor: "#4285F4",
     status: "disconnected",
     permissions: [
       "Ler campanhas e grupos de anúncios",
@@ -47,8 +68,8 @@ export const INTEGRATIONS: Integration[] = [
     id: "tiktok",
     name: "TikTok Ads",
     category: "SHORT-FORM VIDEO",
-    description: "Traga alcance, visualizações e conversões do TikTok para o seu workspace.",
-    brandColor: "#FF0050",
+    description: "Crie campanhas e acompanhe o desempenho dos anúncios.",
+    brandColor: "#00F2FE",
     status: "disconnected",
     permissions: [
       "Ler campanhas e anúncios",
@@ -67,7 +88,22 @@ export function loadIntegrations(): Integration[] {
     const raw = localStorage.getItem(INTEGRATION_STORAGE_KEY);
     if (!raw) return INTEGRATIONS;
     const parsed = JSON.parse(raw) as Integration[];
-    return parsed.length === INTEGRATIONS.length ? parsed : INTEGRATIONS;
+    if (!Array.isArray(parsed)) return INTEGRATIONS;
+
+    // Garante que todas as integrações definidas existam (inclusive novas como instagram)
+    const merged = INTEGRATIONS.map((base) => {
+      const existing = parsed.find((p) => p.id === base.id);
+      if (!existing) return base;
+      return {
+        ...base,
+        status: existing.status ?? base.status,
+        accountName: existing.accountName ?? base.accountName,
+        accountHandle: existing.accountHandle ?? base.accountHandle,
+        avatarUrl: existing.avatarUrl ?? base.avatarUrl,
+        lastSyncedAt: existing.lastSyncedAt ?? base.lastSyncedAt,
+      };
+    });
+    return merged;
   } catch {
     return INTEGRATIONS;
   }
